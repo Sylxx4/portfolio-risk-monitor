@@ -5,16 +5,38 @@ import requests
 
 from riskmon import config
 from riskmon.providers.base import PriceProvider, ProviderError
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
+class RetryableError(Exception):
+    """A temporary failure worth retrying."""
 
 class AlpacaProvider(PriceProvider):
     BASE_URL = "https://data.alpaca.markets/v2/stocks/{ticker}/bars"
     MULTI_URL = "https://data.alpaca.markets/v2/stocks/bars"
-
+    
+    @retry(retry=retry_if_exception_type(RetryableError),
+       stop=stop_after_attempt(3),
+       wait=wait_exponential(multiplier=1, max=8),
+       reraise=True)
     def _fetch_page(self, headers: dict, params: dict) -> dict:
-        #two lines 
-        response = requests.get(self.MULTI_URL, headers=headers, params=params, timeout=config.HTTP_TIMEOUT)
-        return response.json()
+        try:
+            response = requests.get(self.MULTI_URL, headers=headers, params=params, timeout=config.HTTP_TIMEOUT)
+        except(requests.Timeout, requests.ConnectionError) as e:
+            raise RetryableError(f"Network error: {e}") from e
+
+        status = response.status_code
+        if status == 429 or 500 <= status < 600:
+            raise RetryableError(f"HTTP {status}")
+
+        if status in (401, 403, 404):
+            raise ProviderError(f"Alpaca request failed: {status}")
+
+        if status in (400, 422):
+            raise ProviderError(f"Alpaca request failed: {status} - {response.text}")
+
+        if status == 200:
+            return response.json()
+        raise ProviderError(f"Unexpected Alpaca response: {status} ")
 
 
     def get_prices(self, tickers: list[str], start: date, end: date) -> pd.DataFrame:
