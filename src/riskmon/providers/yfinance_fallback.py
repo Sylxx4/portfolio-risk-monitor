@@ -25,7 +25,7 @@ class YFinanceProvider(PriceProvider):
         if isinstance(close, pd.Series):
             close = close.to_frame(tickers[0])
 
-        # YOU: guard — for each requested ticker, if it's missing from close.columns
+        # : guard — for each requested ticker, if it's missing from close.columns
         #      OR its column is entirely NaN, raise ProviderError naming it.
         for ticker in tickers:
             if ticker not in close.columns or close[ticker].isna().all():
