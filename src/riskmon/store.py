@@ -1,5 +1,8 @@
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
+
+import pandas as pd
 
 from riskmon import config
 
@@ -38,3 +41,28 @@ def init_db(path: Path | None = None) -> None:
     conn = sqlite3.connect(path)
     conn.executescript(SCHEMA)
     conn.close()    
+
+def save_prices(df: pd.DataFrame, source: str, path: Path | None = None) -> int:
+    if path is None:
+        path = config.DB_PATH
+
+    # Step 1: wide -> long
+    long = df.reset_index().melt(
+        id_vars="date", var_name="ticker", value_name="adj_close"
+    )
+    # Step 2: drop rows where adj_close is NaN (never store a missing price)
+    long = long.dropna(subset=["adj_close"])
+    # Step 3: dates as ISO strings (SQLite has no date type)
+    long["date"] = long["date"].dt.strftime("%Y-%m-%d")
+    # Step 4: add the bookkeeping columns
+    long["source"] = source
+    long["fetched_at"] = datetime.now(timezone.utc).isoformat()
+
+    # Step 5: write to the prices table
+    # :
+    rows = list(long[["ticker","date","adj_close","source","fetched_at"]].itertuples(index=False, name=None))
+    conn = sqlite3.connect(path)
+    conn.executemany("INSERT OR REPLACE INTO prices VALUES (?, ?, ?, ?, ?)", rows)
+    conn.commit()
+    conn.close()
+    return len(rows)    
