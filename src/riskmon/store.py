@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS coverage (
 """
 
 
-def init_db(path: Path = None) -> None:
+def init_db(path: Path | None = None) -> None:
     # : if path is None, use config.DB_PATH; ensure parent directory exists; connect to SQLite; execute SCHEMA; close connection.
     if path is None:
         path = config.DB_PATH
