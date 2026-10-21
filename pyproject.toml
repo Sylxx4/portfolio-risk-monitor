@@ -19,3 +19,6 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "live: tests that hit real external APIs (skipped in CI)",
+]
