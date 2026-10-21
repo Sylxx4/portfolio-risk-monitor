@@ -13,3 +13,7 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: pytest -m "not live"
+        env:
+          ALPACA_KEY_ID: "test-key"
+          ALPACA_SECRET_KEY: "test-secret"
+          FRED_API_KEY: "test-key"
