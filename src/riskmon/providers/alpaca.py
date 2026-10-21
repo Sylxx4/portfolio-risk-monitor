@@ -2,10 +2,16 @@ from datetime import date
 
 import pandas as pd
 import requests
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from riskmon import config
 from riskmon.providers.base import PriceProvider, ProviderError
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
 
 class RetryableError(Exception):
     """A temporary failure worth retrying."""
