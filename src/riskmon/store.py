@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -98,3 +98,46 @@ def load_prices(tickers: list[str], start: date, end: date, path: Path | None = 
     df.columns.name = None   #(pivot leaves a stray "ticker" label; clear it)
     df = df.astype("float64")
     return df
+
+    
+
+
+def missing_ranges(ticker: str, start: date, end: date, path: Path | None = None) -> list[tuple[date, date]]:
+    if path is None:
+        path = config.DB_PATH
+    ticker = ticker.strip().upper()
+
+    # Look up the covered span for this ticker from the coverage table.
+    conn = sqlite3.connect(path)
+    row = conn.execute(
+        "SELECT MIN(start_date), MAX(end_date) FROM coverage WHERE ticker = ?",
+        (ticker,),
+    ).fetchone()
+    conn.close()
+
+    covered_start, covered_end = row  # these are ISO strings, or (None, None) if nothing covered
+
+    # Case 1: nothing covered at all -> the whole requested range is missing.
+    # YOU: if covered_start is None, return [(start, end)]
+    if covered_start is None:
+        return [(start, end)]
+
+    # Parse the covered strings into date objects for comparison.
+    covered_start = date.fromisoformat(covered_start)
+    covered_end = date.fromisoformat(covered_end)
+
+    gaps = []
+    # Case 2: requested start is before covered start -> need the earlier slice.
+    # YOU: if start < covered_start:
+    #          append (start, covered_start - one day) to gaps
+    #      (use timedelta(days=1) to step back one day)
+    if start < covered_start:
+        gaps.append((start, covered_start - timedelta(days=1)))
+
+    # Case 3: requested end is after covered end -> need the later slice.
+    # YOU: if end > covered_end:
+    #          append (covered_end + one day, end) to gaps
+    if end > covered_end:
+        gaps.append((covered_end + timedelta(days=1), end))
+
+    return gaps
