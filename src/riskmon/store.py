@@ -141,3 +141,19 @@ def missing_ranges(ticker: str, start: date, end: date, path: Path | None = None
         gaps.append((covered_end + timedelta(days=1), end))
 
     return gaps
+
+
+#saves coverage information to the database
+def record_coverage(ticker: str, start: date, end: date, path: Path | None = None) -> None:
+    if path is None:
+        path = config.DB_PATH
+    ticker = ticker.strip().upper()
+    conn = sqlite3.connect(path)
+    conn.execute(
+        "INSERT OR REPLACE INTO coverage VALUES (?, ?, ?)",
+        (ticker, start.isoformat(), end.isoformat()),
+    )
+    conn.commit()
+    conn.close()
+
+   

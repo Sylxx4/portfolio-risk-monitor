@@ -17,3 +17,10 @@ def require(name: str) -> str:
         raise RuntimeError(f"Missing required environment variable: {name}")
     # YOU: otherwise, return value
     return value
+
+def get_provider():
+    from riskmon.providers.alpaca import AlpacaProvider
+    from riskmon.providers.yfinance_fallback import YFinanceProvider
+    if PRICE_PROVIDER == "yfinance":
+        return YFinanceProvider()
+    return AlpacaProvider()    
